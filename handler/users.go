@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"crowdfundingapp/auth"
 	"crowdfundingapp/helper"
 	"crowdfundingapp/users"
 	"fmt"
@@ -11,10 +12,11 @@ import (
 
 type userHandler struct {
 	userService users.Service
+	authService auth.Service
 }
 
-func NewUserHandler(userService users.Service) *userHandler {
-	return &userHandler{userService}
+func NewUserHandler(userService users.Service, authService auth.Service) *userHandler {
+	return &userHandler{userService, authService}
 }
 
 func (h *userHandler) RegisterUser(c *gin.Context) {
@@ -36,7 +38,15 @@ func (h *userHandler) RegisterUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
-	formatter := users.FormatUser(newUser, "tokentokentokentoken")
+
+	token, err := h.authService.GenerateToken(newUser.ID)
+	if err != nil {
+		response := helper.APIResponse("Failed to Generate JWT Token", http.StatusBadRequest, "error", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	formatter := users.FormatUser(newUser, token)
 
 	response := helper.APIResponse("Account Successfully Created", http.StatusOK, "success", formatter)
 
@@ -65,7 +75,14 @@ func (h *userHandler) Login(c *gin.Context) {
 		return
 	}
 
-	formatter := users.FormatUser(loggedInUser, "tokentokentokentoken")
+	token, err := h.authService.GenerateToken(loggedInUser.ID)
+	if err != nil {
+		response := helper.APIResponse("Login Failed", http.StatusBadRequest, "error", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	formatter := users.FormatUser(loggedInUser, token)
 	response := helper.APIResponse("Log In Successfull", http.StatusOK, "success", formatter)
 
 	c.JSON(http.StatusOK, response)
